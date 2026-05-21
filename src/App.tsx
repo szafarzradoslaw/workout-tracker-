@@ -1,122 +1,158 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react";
+import { useWorkoutStore } from "@/store/workouts";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const sessions = useWorkoutStore((s) => s.sessions);
+  const createSession = useWorkoutStore((s) => s.createSession);
+  const addExercise = useWorkoutStore((s) => s.addExercise);
+  const addSet = useWorkoutStore((s) => s.addSet);
+
+  const [expandedSession, setExpandedSession] = useState<string | null>(null);
+  const [newExerciseName, setNewExerciseName] = useState<Record<string, string>>({});
+  const [newSet, setNewSet] = useState<Record<string, { reps: string; weight: string }>>({});
+
+  const handleAddExercise = (sessionId: string) => {
+    const name = newExerciseName[sessionId]?.trim();
+    if (!name) return;
+    addExercise(sessionId, name);
+    setNewExerciseName((prev) => ({ ...prev, [sessionId]: "" }));
+  };
+
+  const handleAddSet = (sessionId: string, exerciseId: string) => {
+    const key = `${sessionId}-${exerciseId}`;
+    const reps = parseInt(newSet[key]?.reps ?? "");
+    const weight = parseFloat(newSet[key]?.weight ?? "");
+    if (isNaN(reps) || isNaN(weight)) return;
+    addSet(sessionId, exerciseId, { reps, weight });
+    setNewSet((prev) => ({ ...prev, [key]: { reps: "", weight: "" } }));
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div style={{ maxWidth: 560, margin: "0 auto", padding: "32px 16px", fontFamily: "var(--font-sans)" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 500, margin: 0 }}>Workouts</h1>
+        <button onClick={createSession}>+ New session</button>
+      </div>
 
-      <div className="ticks"></div>
+      {sessions.length === 0 && (
+        <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>No sessions yet.</p>
+      )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {sessions.map((session) => {
+          const isOpen = expandedSession === session.id;
+          const date = new Date(session.date).toLocaleDateString(undefined, {
+            weekday: "short", month: "short", day: "numeric",
+          });
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+          return (
+            <div
+              key={session.id}
+              style={{
+                border: "0.5px solid var(--color-border-tertiary)",
+                borderRadius: "var(--border-radius-lg)",
+                background: "var(--color-background-primary)",
+                overflow: "hidden",
+              }}
+            >
+              {/* Session header */}
+              <button
+                onClick={() => setExpandedSession(isOpen ? null : session.id)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center",
+                  justifyContent: "space-between", padding: "12px 16px",
+                  background: "none", border: "none", cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: 14, fontWeight: 500 }}>{date}</span>
+                  <span style={{ fontSize: 13, color: "var(--color-text-secondary)", marginLeft: 10 }}>
+                    {session.exercises.length} exercise{session.exercises.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  {isOpen ? "▲" : "▼"}
+                </span>
+              </button>
+
+              {/* Expanded body */}
+              {isOpen && (
+                <div style={{ borderTop: "0.5px solid var(--color-border-tertiary)", padding: "12px 16px" }}>
+
+                  {/* Exercise list */}
+                  {session.exercises.map((exercise) => {
+                    const setKey = `${session.id}-${exercise.id}`;
+                    return (
+                      <div key={exercise.id} style={{ marginBottom: 16 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, margin: "0 0 6px" }}>{exercise.name}</p>
+
+                        {exercise.sets.length > 0 && (
+                          <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", marginBottom: 8 }}>
+                            <thead>
+                              <tr style={{ color: "var(--color-text-secondary)" }}>
+                                <th style={{ textAlign: "left", fontWeight: 400, paddingBottom: 4 }}>Set</th>
+                                <th style={{ textAlign: "right", fontWeight: 400, paddingBottom: 4 }}>Reps</th>
+                                <th style={{ textAlign: "right", fontWeight: 400, paddingBottom: 4 }}>Weight (kg)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {exercise.sets.map((s, i) => (
+                                <tr key={s.id} style={{ borderTop: "0.5px solid var(--color-border-tertiary)" }}>
+                                  <td style={{ padding: "4px 0", color: "var(--color-text-secondary)" }}>{i + 1}</td>
+                                  <td style={{ padding: "4px 0", textAlign: "right" }}>{s.reps}</td>
+                                  <td style={{ padding: "4px 0", textAlign: "right" }}>{s.weight}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+
+                        {/* Add set */}
+                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                          <input
+                            type="number"
+                            placeholder="Reps"
+                            value={newSet[setKey]?.reps ?? ""}
+                            onChange={(e) =>
+                              setNewSet((prev) => ({ ...prev, [setKey]: { ...prev[setKey], reps: e.target.value } }))
+                            }
+                            style={{ width: 64 }}
+                          />
+                          <input
+                            type="number"
+                            placeholder="kg"
+                            value={newSet[setKey]?.weight ?? ""}
+                            onChange={(e) =>
+                              setNewSet((prev) => ({ ...prev, [setKey]: { ...prev[setKey], weight: e.target.value } }))
+                            }
+                            style={{ width: 64 }}
+                          />
+                          <button onClick={() => handleAddSet(session.id, exercise.id)}>+ Set</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add exercise */}
+                  <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                    <input
+                      placeholder="Exercise name"
+                      value={newExerciseName[session.id] ?? ""}
+                      onChange={(e) =>
+                        setNewExerciseName((prev) => ({ ...prev, [session.id]: e.target.value }))
+                      }
+                      onKeyDown={(e) => e.key === "Enter" && handleAddExercise(session.id)}
+                      style={{ flex: 1 }}
+                    />
+                    <button onClick={() => handleAddExercise(session.id)}>+ Exercise</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
-
-export default App
